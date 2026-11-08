@@ -1,0 +1,33 @@
+{
+  "name": "Beerpong-Weihnachtsturnier · Gruppe Timmer",
+  "short_name": "Beerpong",
+  "description": "Turnier-App für das Beerpong-Weihnachtsturnier der Gruppe Timmer.",
+  "lang": "de",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#061b14",
+  "theme_color": "#0a2a1f",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
