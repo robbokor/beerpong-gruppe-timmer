@@ -32,5 +32,5 @@ Bauernschützen e.V.) am Samstag, 19.12.2026. Läuft nach dem ersten Laden ohne 
 
 ## Nach einer Änderung an der App
 
-In `sw.js` die Zeile `const VERSION = 'v1';` hochzählen, sonst bleibt auf den Geräten der alte
+In `sw.js` die Zeile `const VERSION` hochzählen, sonst bleibt auf den Geräten der alte
 Stand im Cache liegen.

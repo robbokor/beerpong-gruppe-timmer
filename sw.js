@@ -2,7 +2,7 @@
    Cache-first: nach dem ersten Laden braucht die App kein Netz mehr.
    Bei Aenderungen an der App VERSION hochzaehlen, sonst bleibt der alte Stand im Cache. */
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = 'beerpong-timmer-' + VERSION;
 
 const ASSETS = [
@@ -16,12 +16,20 @@ const ASSETS = [
   './icons/favicon-32.png'
 ];
 
+/* Wichtig: mit cache 'reload' laden, sonst holt sich der neue Service Worker
+   die alten Dateien aus dem HTTP-Cache des Browsers und das Hochzaehlen der
+   VERSION bringt auf dem Geraet gar nichts. */
+async function vorladen() {
+  const cache = await caches.open(CACHE);
+  await Promise.all(ASSETS.map(async (url) => {
+    const res = await fetch(new Request(url, { cache: 'reload' }));
+    if (!res || !res.ok) throw new Error('Nicht geladen: ' + url);
+    await cache.put(url, res);
+  }));
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(vorladen().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
