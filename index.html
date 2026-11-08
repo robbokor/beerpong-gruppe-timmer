@@ -61,6 +61,7 @@ table.st{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.st th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:right;padding:6px 8px;font-weight:600}
 table.st td{padding:9px 8px;border-top:1px solid var(--line);text-align:right}
 table.st .tn{text-align:left}
+table.st .pts{font-weight:700;color:#fff}
 table.st tr.q td{background:rgba(255,255,255,.06)}
 table.st tr.q td.pos{color:var(--gold)}
 td.pos{width:30px;font-weight:700;color:var(--muted)}
@@ -190,10 +191,11 @@ const DEFAULT_RULES=[
  'Landen beide Bälle im selben Becher, gibt es ebenfalls Balls Back, und es werden drei Becher getrunken: der getroffene und zwei weitere.',
  'Ein Bouncer (der Ball springt vorher auf dem Tisch auf) zählt zwei Becher.',
  'Ellbogenregel: Beim Wurf bleibt der Ellbogen hinter der Tischkante. Ist er darüber, zählt der Treffer nicht.',
- 'Nachwurf: Das Team, das als zweites geworfen hat, hat den Nachwurf. Trifft das Startteam den letzten Becher, darf das andere Team seine Runde noch zu Ende werfen. Gleicht es dabei aus, entscheidet das Stechen.',
+ 'Nachwurf: Das Team, das als zweites geworfen hat, hat den Nachwurf. Trifft das Startteam den letzten Becher, darf das andere Team seine Runde noch zu Ende werfen. Gleicht es dabei aus, steht es unentschieden.',
  'Zeitlimit: Nach {zeit} Minuten wird die laufende Runde zu Ende gespielt. Danach gewinnt das Team mit mehr getroffenen Bechern.',
- 'Stechen bei Gleichstand: Die Teams werfen abwechselnd je einen Ball. Trifft ein Team und das andere antwortet nicht mit einem Treffer, ist das Spiel entschieden.',
- 'Wertung in der Tabelle: zuerst Siege, dann Becherdifferenz, dann getroffene Becher, dann der direkte Vergleich.',
+ 'Unentschieden: In der Gruppenphase darf ein Spiel unentschieden ausgehen, ein Stechen ist dort freiwillig. In der Finalrunde muss ein Sieger feststehen, dort wird bei Gleichstand gestochen.',
+ 'Stechen: Die Teams werfen abwechselnd je einen Ball. Trifft ein Team und das andere antwortet nicht mit einem Treffer, ist das Spiel entschieden.',
+ 'Wertung in der Tabelle: zuerst Punkte (Sieg 3, Unentschieden 1, Niederlage 0), dann Becherdifferenz, dann getroffene Becher, dann der direkte Vergleich.',
  'Das Siegerteam des Finales bekommt den Pokal.'
 ];
 function defState(){return{v:1,settings:{date:'2026-12-19',start:'20:00',cups:10,system:'groups',groupsMode:'auto',koStart:'HF',thirdPlace:true,leagueKO:'final',gameMin:12,pauseMin:3,limitOn:true,limitMin:12,tables:2,snow:true,sound:true},teams:[],drawn:false,groups:[],games:[],rules:DEFAULT_RULES.slice(),logo:null}}
@@ -256,11 +258,12 @@ function generate(system,ids,s,doShuffle){
 /* ---------- Tabelle & Auflösung ---------- */
 function standings(key){
  const grp=S.groups.find(g=>g.key===key);if(!grp)return[];
- const rows={};grp.ids.forEach(id=>rows[id]={id,sp:0,s:0,n:0,bp:0,bm:0});
+ const rows={};grp.ids.forEach(id=>rows[id]={id,sp:0,s:0,u:0,n:0,bp:0,bm:0,pt:0});
  const gg=S.games.filter(g=>g.phase==='group'&&g.group===key&&g.status==='done');
- gg.forEach(g=>{const A=rows[g.sa.id],B=rows[g.sb.id];if(!A||!B)return;A.sp++;B.sp++;A.bp+=g.hA;A.bm+=g.hB;B.bp+=g.hB;B.bm+=g.hA;if(g.win==='a'){A.s++;B.n++}else{B.s++;A.n++}});
- const h2h=(x,y)=>{const g=gg.find(g=>(g.sa.id===x&&g.sb.id===y)||(g.sa.id===y&&g.sb.id===x));if(!g)return 0;const w=g.win==='a'?g.sa.id:g.sb.id;return w===x?-1:1};
- return Object.values(rows).sort((x,y)=>(y.s-x.s)||((y.bp-y.bm)-(x.bp-x.bm))||(y.bp-x.bp)||h2h(x.id,y.id)||tname(x.id).localeCompare(tname(y.id),'de'));
+ gg.forEach(g=>{const A=rows[g.sa.id],B=rows[g.sb.id];if(!A||!B)return;A.sp++;B.sp++;A.bp+=g.hA;A.bm+=g.hB;B.bp+=g.hB;B.bm+=g.hA;if(g.win==='a'){A.s++;B.n++}else if(g.win==='b'){B.s++;A.n++}else{A.u++;B.u++}});
+ Object.values(rows).forEach(r=>r.pt=r.s*3+r.u);
+ const h2h=(x,y)=>{const g=gg.find(g=>(g.sa.id===x&&g.sb.id===y)||(g.sa.id===y&&g.sb.id===x));if(!g||(g.win!=='a'&&g.win!=='b'))return 0;const w=g.win==='a'?g.sa.id:g.sb.id;return w===x?-1:1};
+ return Object.values(rows).sort((x,y)=>(y.pt-x.pt)||((y.bp-y.bm)-(x.bp-x.bm))||(y.bp-x.bp)||h2h(x.id,y.id)||tname(x.id).localeCompare(tname(y.id),'de'));
 }
 function groupDone(key){const gg=S.games.filter(g=>g.phase==='group'&&g.group===key);return gg.length>0&&gg.every(g=>g.status==='done')}
 function resolve(src){
@@ -268,12 +271,12 @@ function resolve(src){
  if(src.type==='team')return src.id;
  if(src.type==='rank'){if(!groupDone(src.group))return null;const st=standings(src.group);return st[src.rank-1]?st[src.rank-1].id:null}
  if(src.type==='pick'){if(!S.groups.every(g=>groupDone(g.key)))return null;const r=pickSet(src.set);return r?(r[src.slot]||null):null}
- if(src.type==='best'){if(!S.groups.every(g=>groupDone(g.key)))return null;const c=S.groups.map(g=>standings(g.key)[src.rank-1]).filter(Boolean);c.sort((x,y)=>(y.s-x.s)||((y.bp-y.bm)-(x.bp-x.bm))||(y.bp-x.bp)||tname(x.id).localeCompare(tname(y.id),'de'));return c[src.nth-1]?c[src.nth-1].id:null}
+ if(src.type==='best'){if(!S.groups.every(g=>groupDone(g.key)))return null;const c=S.groups.map(g=>standings(g.key)[src.rank-1]).filter(Boolean);c.sort((x,y)=>(y.pt-x.pt)||((y.bp-y.bm)-(x.bp-x.bm))||(y.bp-x.bp)||tname(x.id).localeCompare(tname(y.id),'de'));return c[src.nth-1]?c[src.nth-1].id:null}
  const g=byId(src.game);if(!g||g.status!=='done')return null;
  const a=resolve(g.sa),b=resolve(g.sb);const w=g.win==='a'?a:b,l=g.win==='a'?b:a;
  return src.type==='winner'?w:l;
 }
-function bestOf(rank){const c=S.groups.map(g=>{const r=standings(g.key)[rank-1];return r?Object.assign({g:g.key},r):null}).filter(Boolean);c.sort((x,y)=>(y.s-x.s)||((y.bp-y.bm)-(x.bp-x.bm))||(y.bp-x.bp)||tname(x.id).localeCompare(tname(y.id),'de'));return c}
+function bestOf(rank){const c=S.groups.map(g=>{const r=standings(g.key)[rank-1];return r?Object.assign({g:g.key},r):null}).filter(Boolean);c.sort((x,y)=>(y.pt-x.pt)||((y.bp-y.bm)-(x.bp-x.bm))||(y.bp-x.bp)||tname(x.id).localeCompare(tname(y.id),'de'));return c}
 function pickSet(set){
  if(set==='q3vf'){const t=bestOf(3);if(t.length<2)return null;let a=t[1],b=t[0];if(a.g==='A'||b.g==='B'){a=t[0];b=t[1]}return[a.id,b.id]}
  if(set==='q3hf'){const sec=bestOf(2)[0],a1=standings('A')[0],b1=standings('B')[0];if(!sec||!a1||!b1)return null;return sec.g==='A'?[b1.id,sec.id,a1.id]:[a1.id,sec.id,b1.id]}
@@ -349,13 +352,14 @@ function drawResult(){
  const warn=g.status==='done'&&dependents(g).some(x=>x.status!=='open')?'<p class="note">Achtung: Folgespiele haben schon begonnen. Eine Änderung kann die Paarungen dort nicht mehr verschieben.</p>':'';
  modal(`<div class="tag">${esc(g.label)}</div><h2>Ergebnis eintragen</h2><div class="sub" style="margin-bottom:8px">Getroffene Becher je Team (höchstens ${c})</div>
  ${stepper('a',A,mstate.hA,c)}${stepper('b',B,mstate.hB,c)}
- ${tie?`<div class="tiebox"><div style="margin-bottom:10px">Gleichstand. Wer hat das Stechen gewonnen?</div><div class="row"><button class="btn ${mstate.win==='a'?'primary':''}" data-act="mwin" data-v="a">${esc(A.name)}</button><button class="btn ${mstate.win==='b'?'primary':''}" data-act="mwin" data-v="b">${esc(B.name)}</button></div></div>`:''}
+ ${tie?(g.phase==='group'?`<div class="tiebox"><div style="margin-bottom:10px">Gleichstand. Unentschieden, oder hat ein Team das Stechen gewonnen?</div><div class="row"><button class="btn ${mstate.win==='a'?'primary':''}" data-act="mwin" data-v="a">${esc(A.name)}</button><button class="btn ${(!mstate.win||mstate.win==='d')?'primary':''}" data-act="mwin" data-v="d">Unentschieden</button><button class="btn ${mstate.win==='b'?'primary':''}" data-act="mwin" data-v="b">${esc(B.name)}</button></div></div>`:`<div class="tiebox"><div style="margin-bottom:10px">Gleichstand. In der Finalrunde muss ein Sieger her. Wer hat das Stechen gewonnen?</div><div class="row"><button class="btn ${mstate.win==='a'?'primary':''}" data-act="mwin" data-v="a">${esc(A.name)}</button><button class="btn ${mstate.win==='b'?'primary':''}" data-act="mwin" data-v="b">${esc(B.name)}</button></div></div>`):''}
  ${warn}<div class="row mfoot">${g.status==='done'?'<button class="btn danger" data-act="mreset">Ergebnis löschen</button>':''}<span class="spacer"></span><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="msave">Speichern</button></div>`);
 }
 function saveResult(){
  const g=byId(mstate.id);const tie=mstate.hA===mstate.hB;
- if(tie&&!mstate.win){toast('Bei Gleichstand bitte den Sieger aus dem Stechen auswählen.');return}
- g.hA=mstate.hA;g.hB=mstate.hB;g.win=tie?mstate.win:(mstate.hA>mstate.hB?'a':'b');
+ const remisOk=g.phase==='group';
+ if(tie&&!remisOk&&!mstate.win){toast('In der Finalrunde muss ein Sieger feststehen. Bitte den Sieger aus dem Stechen auswählen.');return}
+ g.hA=mstate.hA;g.hB=mstate.hB;g.win=tie?(remisOk?(mstate.win||'d'):mstate.win):(mstate.hA>mstate.hB?'a':'b');
  const now=Date.now();if(g.status!=='done'){g.finishedAt=now;if(!g.startedAt)g.startedAt=now}
  g.status='done';closeModal();save();render();
  const f=S.games.find(x=>x.round==='F');if(f&&f.id===g.id)toast('Wir haben einen Pokalsieger!');
@@ -452,13 +456,13 @@ function vLive(){
  h+=`<div class="foot">${done} von ${S.games.length} Spielen gespielt${ch?'':' · voraussichtliches Ende gegen '+fmt(pr.last)+' Uhr'}</div>`;
  return h;
 }
-function resLine(g){const A=side(g,'a'),B=side(g,'b');const wa=g.win==='a';return`<div class="it"><span class="time">${fmt(g.finishedAt)}</span><span><span class="${wa?'win':'los'}">${esc(A.name)}</span> <span class="res">${g.hA} : ${g.hB}</span> <span class="${wa?'los':'win'}">${esc(B.name)}</span><div class="tag" style="margin-top:3px">${esc(g.label)}</div></span><span class="admin"><button class="btn sm" data-act="result" data-id="${g.id}">Ändern</button></span></div>`}
+function resLine(g){const A=side(g,'a'),B=side(g,'b');const rm=g.win!=='a'&&g.win!=='b',wa=g.win==='a';return`<div class="it"><span class="time">${fmt(g.finishedAt)}</span><span><span class="${rm?'':(wa?'win':'los')}">${esc(A.name)}</span> <span class="res">${g.hA} : ${g.hB}</span> <span class="${rm?'':(wa?'los':'win')}">${esc(B.name)}</span><div class="tag" style="margin-top:3px">${esc(g.label)}</div></span><span class="admin"><button class="btn sm" data-act="result" data-id="${g.id}">Ändern</button></span></div>`}
 function bestNote(){const pk=new Set();S.games.forEach(g=>[g.sa,g.sb].forEach(x=>{if(x.type==='pick')pk.add(x.set)}));if(pk.has('q3vf'))return' Dazu die 2 besten Gruppendritten aus allen Gruppen.';if(pk.has('q3hf'))return' Dazu der beste Gruppenzweite aus allen Gruppen.';const b=[];S.games.forEach(g=>[g.sa,g.sb].forEach(x=>{if(x.type==='best')b.push(x)}));if(!b.length)return'';const r=b[0].rank;return' Dazu '+(b.length===1?'der beste Gruppen'+(r===2?'zweite':'dritte'):'die '+b.length+' besten Gruppen'+(r===2?'zweiten':'dritten'))+' aus allen Gruppen.'}
 function standingsCards(compact){
  return S.groups.map(gr=>{
   const st=standings(gr.key),q=qualifiers(gr.key);
-  const rows=st.map((r,i)=>`<tr class="${i<q?'q':''}"><td class="pos">${i+1}</td><td class="tn">${esc(tname(r.id))}${!compact&&players(r.id)?`<div class="pl">${esc(players(r.id))}</div>`:''}</td><td>${r.sp}</td><td>${r.s}</td>${compact?'':`<td>${r.n}</td><td>${r.bp}:${r.bm}</td>`}<td>${r.bp-r.bm>0?'+':''}${r.bp-r.bm}</td></tr>`).join('');
-  return`<div class="card"><h2>${esc(gr.name)}</h2><table class="st"><thead><tr><th></th><th class="tn">Team</th><th>Sp</th><th>S</th>${compact?'':'<th>N</th><th>Becher</th>'}<th>Diff</th></tr></thead><tbody>${rows}</tbody></table>${q?`<div class="note">Hervorgehoben: ${q===1?'Platz 1 kommt':'Plätze 1 bis '+q+' kommen'} in die Finalrunde.${bestNote()}</div>`:''}</div>`;
+  const rows=st.map((r,i)=>`<tr class="${i<q?'q':''}"><td class="pos">${i+1}</td><td class="tn">${esc(tname(r.id))}${!compact&&players(r.id)?`<div class="pl">${esc(players(r.id))}</div>`:''}</td><td>${r.sp}</td><td>${r.s}</td><td>${r.u}</td>${compact?'':`<td>${r.n}</td><td>${r.bp}:${r.bm}</td>`}<td>${r.bp-r.bm>0?'+':''}${r.bp-r.bm}</td><td class="pts">${r.pt}</td></tr>`).join('');
+  return`<div class="card"><h2>${esc(gr.name)}</h2><table class="st"><thead><tr><th></th><th class="tn">Team</th><th>Sp</th><th>S</th><th>U</th>${compact?'':'<th>N</th><th>Becher</th>'}<th>Diff</th><th class="pts">Pkt</th></tr></thead><tbody>${rows}</tbody></table>${q?`<div class="note">Hervorgehoben: ${q===1?'Platz 1 kommt':'Plätze 1 bis '+q+' kommen'} in die Finalrunde.${bestNote()}</div>`:''}</div>`;
  }).join('');
 }
 function kgCard(g,P){const A=side(g,'a'),B=side(g,'b'),d=g.status==='done',p=P[g.id];
@@ -482,7 +486,7 @@ function planRow(g,P){
  if(g.status==='open'){if(!canStart(g))acts+=`<button class="btn sm gold" data-act="start" data-id="${g.id}">Starten</button>`;if(A.known&&B.known)acts+=`<button class="btn sm" data-act="result" data-id="${g.id}">Ergebnis</button>`}
  else if(g.status==='live')acts=`<button class="btn sm primary" data-act="result" data-id="${g.id}">Ergebnis</button>`;
  else acts=`<button class="btn sm" data-act="result" data-id="${g.id}">Ändern</button>`;
- return`<div class="pr ${g.status}"><span class="time">${time}</span><span class="meta"><span class="tag">${esc(g.label)}</span>${tbl?`<div class="time">${tbl}</div>`:''}</span><span class="a">${pName(A,d?(g.win==='a'?'win':'los'):'')}</span><span class="c res">${d?g.hA+' : '+g.hB:'<span class="los">gegen</span>'}</span><span>${pName(B,d?(g.win==='b'?'win':'los'):'')}</span><span class="acts row admin" style="justify-content:flex-end">${acts}</span></div>`;
+ return`<div class="pr ${g.status}"><span class="time">${time}</span><span class="meta"><span class="tag">${esc(g.label)}</span>${tbl?`<div class="time">${tbl}</div>`:''}</span><span class="a">${pName(A,d?(g.win==='a'?'win':g.win==='b'?'los':''):'')}</span><span class="c res">${d?g.hA+' : '+g.hB:'<span class="los">gegen</span>'}</span><span>${pName(B,d?(g.win==='b'?'win':g.win==='a'?'los':''):'')}</span><span class="acts row admin" style="justify-content:flex-end">${acts}</span></div>`;
 }
 function vPlan(){
  if(!S.drawn)return`<div class="card hero"><div class="big" style="font-size:30px">Noch kein Spielplan</div><div class="sub">Teams in der Einrichtung eintragen und auslosen.</div><div class="row admin" style="justify-content:center;margin-top:18px"><button class="btn primary" data-act="view" data-v="setup">Zur Einrichtung</button></div></div>`;
