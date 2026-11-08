@@ -189,12 +189,13 @@ const DEFAULT_RULES=[
  'Schnick-Schnack-Schnuck entscheidet, welches Team zuerst wirft. Pro Runde wirft jeder Spieler eines Teams einen Ball.',
  'Balls Back: Treffen beide Spieler in derselben Runde zwei verschiedene Becher, bekommt das Team beide Bälle zurück und wirft noch einmal.',
  'Landen beide Bälle im selben Becher, gibt es ebenfalls Balls Back, und es werden drei Becher getrunken: der getroffene und zwei weitere.',
- 'Ein Bouncer (der Ball springt vorher auf dem Tisch auf) zählt zwei Becher.',
+ 'Ein Bouncer (der Ball springt vorher auf dem Tisch auf) zählt zwei Becher. Sobald der Ball den Tisch berührt hat, darf das gegnerische Team ihn wegschlagen.',
  'Ellbogenregel: Beim Wurf bleibt der Ellbogen hinter der Tischkante. Ist er darüber, zählt der Treffer nicht.',
+ 'Umformieren: Bei {becher} Bechern darf jedes Team {umformen} pro Spiel verlangen, dass die übrigen Becher zu einer neuen Form zusammengeschoben werden. Angesagt wird vor dem Wurf.',
  'Nachwurf: Das Team, das als zweites geworfen hat, hat den Nachwurf. Trifft das Startteam den letzten Becher, darf das andere Team seine Runde noch zu Ende werfen. Gleicht es dabei aus, steht es unentschieden.',
  'Zeitlimit: Nach {zeit} Minuten wird die laufende Runde zu Ende gespielt. Danach gewinnt das Team mit mehr getroffenen Bechern.',
  'Unentschieden: In der Gruppenphase darf ein Spiel unentschieden ausgehen, ein Stechen ist dort freiwillig. In der Finalrunde muss ein Sieger feststehen, dort wird bei Gleichstand gestochen.',
- 'Stechen: Die Teams werfen abwechselnd je einen Ball. Trifft ein Team und das andere antwortet nicht mit einem Treffer, ist das Spiel entschieden.',
+ 'Stechen: Ein einzelner Becher kommt in die Tischmitte. Die Teams werfen abwechselnd je einen Ball, es beginnt das Team, das im Spiel nicht angefangen hat. Trifft ein Team und das andere antwortet in derselben Runde nicht, ist das Spiel entschieden.',
  'Wertung in der Tabelle: zuerst Punkte (Sieg 3, Unentschieden 1, Niederlage 0), dann Becherdifferenz, dann getroffene Becher, dann der direkte Vergleich.',
  'Das Siegerteam des Finales bekommt den Pokal.'
 ];
@@ -505,7 +506,7 @@ function vTable(){
  const names=c=>c.some(g=>g.round==='F')?'Finale':ROUND[c[0].round];
  return`<div class="grid g3" style="margin-bottom:16px">${standingsCards(false)}</div>${ko.length?`<div class="card"><h2>Finalrunde</h2><div class="bracket">${cols.map(c=>`<div><h3>${names(c)}</h3>${c.slice().sort((a,b)=>(a.round==='F')-(b.round==='F')).map(g=>kgCard(g,P)).join('')}</div>`).join('')}</div></div>`:''}`;
 }
-function ruleText(r){return r.replace(/\{becher\}/g,S.settings.cups).replace(/\{zeit\}/g,S.settings.limitMin)}
+function ruleText(r){return r.replace(/\{becher\}/g,S.settings.cups).replace(/\{zeit\}/g,S.settings.limitMin).replace(/\{umformen\}/g,S.settings.cups>=10?'zweimal':'einmal')}
 function vRules(){
  const list=S.rules.filter(r=>S.settings.limitOn||!/\{zeit\}/.test(r));
  return`<div class="card" style="max-width:900px;margin:0 auto"><h2>Spielregeln</h2><ol class="rules">${list.map(r=>`<li>${esc(ruleText(r))}</li>`).join('')}</ol><div class="row admin" style="margin-top:14px"><button class="btn sm" data-act="rulesEdit">Regeln bearbeiten</button></div></div>`;
@@ -633,7 +634,7 @@ document.addEventListener('click',e=>{
   case'exportDl':{let fr=true;try{fr=window.top!==window.self}catch(err){}if(fr){toast('Download geht in dieser Ansicht nicht. Bitte „Backup kopieren“ nutzen.');break}try{const bl=new Blob([exportJson()],{type:'application/json'});const u=URL.createObjectURL(bl);const l=document.createElement('a');l.href=u;l.download='beerpong-backup-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.json';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);toast('Backup wird heruntergeladen.')}catch(err){toast('Download geht hier nicht. Bitte „Backup kopieren“ nutzen.')}break}
   case'exportCopy':{const txt=exportJson();const fb=()=>modal(`<h2>Backup</h2><p class="sub">Text markieren und kopieren.</p><textarea readonly style="min-height:220px">${esc(txt)}</textarea><div class="row mfoot"><span class="spacer"></span><button class="btn primary" data-act="mclose">Fertig</button></div>`);try{navigator.clipboard.writeText(txt).then(()=>toast('Backup kopiert.'),fb)}catch(err){fb()}break}
   case'import':{const t=$('#impTxt').value.trim();if(!t){toast('Bitte zuerst den Backup-Text einfügen.');return}try{const x=JSON.parse(t);if(!x||!x.settings)throw 0;S=normalize(x);save();view='live';render();toast('Backup wiederhergestellt.')}catch(err){toast('Das ist kein gültiges Backup.')}break}
-  case'rulesEdit':modal(`<h2>Regeln bearbeiten</h2><p class="note">Eine Regel pro Zeile. {becher} und {zeit} werden automatisch durch die Becheranzahl und das Zeitlimit ersetzt.</p><textarea id="rulesTxt" style="min-height:320px">${esc(S.rules.join('\n'))}</textarea><div class="row mfoot"><button class="btn danger" data-act="rulesDef">Standard</button><span class="spacer"></span><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="rulesSave">Speichern</button></div>`);break;
+  case'rulesEdit':modal(`<h2>Regeln bearbeiten</h2><p class="note">Eine Regel pro Zeile. {becher}, {zeit} und {umformen} werden automatisch durch die Becheranzahl, das Zeitlimit und die Zahl der erlaubten Umformierungen ersetzt.</p><textarea id="rulesTxt" style="min-height:320px">${esc(S.rules.join('\n'))}</textarea><div class="row mfoot"><button class="btn danger" data-act="rulesDef">Standard</button><span class="spacer"></span><button class="btn" data-act="mclose">Abbrechen</button><button class="btn primary" data-act="rulesSave">Speichern</button></div>`);break;
   case'rulesSave':{const l=$('#rulesTxt').value.split('\n').map(x=>x.trim()).filter(Boolean);S.rules=l.length?l:DEFAULT_RULES.slice();save();closeModal();render();break}
   case'rulesDef':$('#rulesTxt').value=DEFAULT_RULES.join('\n');break;
  }
