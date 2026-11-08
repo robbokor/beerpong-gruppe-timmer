@@ -62,6 +62,8 @@ table.st th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:v
 table.st td{padding:9px 8px;border-top:1px solid var(--line);text-align:right}
 table.st .tn{text-align:left}
 table.st .pts{font-weight:700;color:#fff}
+.stw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:1100px){table.st .bch{display:none}table.st th,table.st td{padding:8px 5px}}
 table.st tr.q td{background:rgba(255,255,255,.06)}
 table.st tr.q td.pos{color:var(--gold)}
 td.pos{width:30px;font-weight:700;color:var(--muted)}
@@ -94,15 +96,17 @@ input,select,textarea{font:inherit;color:#fff;background:rgba(0,0,0,.25);border:
 select option{color:#000}
 textarea{min-height:200px;line-height:1.45}
 label.f{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
-.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.fg>div{min-width:0}
+.fg input,.fg select{min-width:0;max-width:100%}
 .teamrow{border:1px solid var(--line);border-radius:14px;padding:10px 12px 12px;margin-bottom:10px;background:rgba(255,255,255,.04)}
 .teamrow .th{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .teamrow .nr{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:600}
 .teamrow .tname{font-size:18px;font-weight:600}
 .teamrow .pp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .teamrow .pp input{min-height:38px;padding:7px 10px;font-size:14px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.seg button{appearance:none;border:0;background:transparent;color:#fff;font:inherit;font-weight:600;padding:10px 18px;min-height:44px;cursor:pointer}
+.seg{display:flex;width:100%;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{appearance:none;flex:1 1 0;min-width:0;border:0;background:transparent;color:#fff;font:inherit;font-weight:600;padding:10px 12px;min-height:44px;cursor:pointer}
 .seg button.on{background:#fff;color:var(--g900)}
 .opt{display:block;text-align:left;width:100%;border:1px solid var(--line);border-radius:16px;padding:16px;background:rgba(255,255,255,.04);color:#fff;font:inherit;cursor:pointer}
 .opt.on{border-color:#fff;background:rgba(255,255,255,.12);box-shadow:0 0 0 1px #fff inset}
@@ -462,8 +466,8 @@ function bestNote(){const pk=new Set();S.games.forEach(g=>[g.sa,g.sb].forEach(x=
 function standingsCards(compact){
  return S.groups.map(gr=>{
   const st=standings(gr.key),q=qualifiers(gr.key);
-  const rows=st.map((r,i)=>`<tr class="${i<q?'q':''}"><td class="pos">${i+1}</td><td class="tn">${esc(tname(r.id))}${!compact&&players(r.id)?`<div class="pl">${esc(players(r.id))}</div>`:''}</td><td>${r.sp}</td><td>${r.s}</td><td>${r.u}</td>${compact?'':`<td>${r.n}</td><td>${r.bp}:${r.bm}</td>`}<td>${r.bp-r.bm>0?'+':''}${r.bp-r.bm}</td><td class="pts">${r.pt}</td></tr>`).join('');
-  return`<div class="card"><h2>${esc(gr.name)}</h2><table class="st"><thead><tr><th></th><th class="tn">Team</th><th>Sp</th><th>S</th><th>U</th>${compact?'':'<th>N</th><th>Becher</th>'}<th>Diff</th><th class="pts">Pkt</th></tr></thead><tbody>${rows}</tbody></table>${q?`<div class="note">Hervorgehoben: ${q===1?'Platz 1 kommt':'Plätze 1 bis '+q+' kommen'} in die Finalrunde.${bestNote()}</div>`:''}</div>`;
+  const rows=st.map((r,i)=>`<tr class="${i<q?'q':''}"><td class="pos">${i+1}</td><td class="tn">${esc(tname(r.id))}${!compact&&players(r.id)?`<div class="pl">${esc(players(r.id))}</div>`:''}</td><td>${r.sp}</td><td>${r.s}</td><td>${r.u}</td>${compact?'':`<td>${r.n}</td><td class="bch">${r.bp}:${r.bm}</td>`}<td>${r.bp-r.bm>0?'+':''}${r.bp-r.bm}</td><td class="pts">${r.pt}</td></tr>`).join('');
+  return`<div class="card"><h2>${esc(gr.name)}</h2><div class="stw"><table class="st"><thead><tr><th></th><th class="tn">Team</th><th>Sp</th><th>S</th><th>U</th>${compact?'':'<th>N</th><th class="bch">Becher</th>'}<th>Diff</th><th class="pts">Pkt</th></tr></thead><tbody>${rows}</tbody></table></div>${q?`<div class="note">Hervorgehoben: ${q===1?'Platz 1 kommt':'Plätze 1 bis '+q+' kommen'} in die Finalrunde.${bestNote()}</div>`:''}</div>`;
  }).join('');
 }
 function kgCard(g,P){const A=side(g,'a'),B=side(g,'b'),d=g.status==='done',p=P[g.id];
