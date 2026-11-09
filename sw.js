@@ -2,7 +2,7 @@
    Cache-first: nach dem ersten Laden braucht die App kein Netz mehr.
    Bei Aenderungen an der App VERSION hochzaehlen, sonst bleibt der alte Stand im Cache. */
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE = 'beerpong-timmer-' + VERSION;
 
 const ASSETS = [
